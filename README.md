@@ -4,18 +4,15 @@ This script uses the Onshape API to export all part studio configurations as STL
 
 Git clone/download the repository
 
+Generate an API Key by going to the [Onshape Dev Portal](https://cad.onshape.com/appstore/dev-portal)
+
 Create an secrets.env file with the following:
 
 ```
 ONSHAPE_ACCESS_KEY=
 ONSHAPE_SECRET_KEY=
-DOCUMENT_ID=
 WVM=w
-WVMID=
-EID=
 ```
-
-Generate an API Key by going to the [Onshape Dev Portal](https://cad.onshape.com/appstore/dev-portal)
 
 Open a part studio and note the URL:
 
@@ -30,12 +27,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 pip3 install -r requirements.txt
-python3 getNameTags.py
+python3 exportConfigs.py <URL-OF-PART-STUDIO>
 ```
 
-The script will grab the FIRST part in the part studio, outputting to out/.
+The script will ask you for the part and configuration inputs you want, outputting to out/.
 
 ## How it works
+(This section needs revision)
 
 ```
 1. Use the parts endpoint to grab the partID:
