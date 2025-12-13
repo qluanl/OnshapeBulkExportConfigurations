@@ -94,7 +94,7 @@ if __name__ == "__main__":
         WVMID = result["WVMID"]
         EID = result["EID"]
     except ValueError as e:
-        print("Error:", e)
+        print(ERROR, e)
 
     token = base64.b64encode(f"{ACCESS_KEY}:{SECRET_KEY}".encode()).decode()
 
@@ -161,7 +161,10 @@ if __name__ == "__main__":
     for cp in chosenConfigParameters:
         total *= len(cp["options"])
     if total > 42:
-        confirm = input(f"{WARNING}{total} many combinations to be downloaded, are you sure?")
+        confirm = input(f"{WARNING}{total} many combinations to be downloaded, are you sure? [Y/n]")
+        if confirm.strip().lower() != 'y':
+            print("Exiting.")
+            exit(0)
     else:
         print(f"{INFO}Downloading {total} combinations...")
 
@@ -179,7 +182,7 @@ if __name__ == "__main__":
         # print(encodedId, queryParam)
 
         ## Export part as STL Synchronously
-        getSTLURL = f"https://cad.onshape.com/api/v12/partstudios/d/{DID}/{WVM}/{WVMID}/e/{EID}/stl?partIds={partID}&version=0&includeExportIds=false&configuration={encodedId}&binaryExport=false"
+        getSTLURL = f"https://cad.onshape.com/api/v12/partstudios/d/{DID}/{WVM}/{WVMID}/e/{EID}/stl?partIds={partID}&mode=binary&grouping=true&units=millimeter&configuration={encodedId}"
         exportHeaders = {
             "Authorization": f"Basic {token}",
             "Accept": "*/*",
@@ -188,9 +191,17 @@ if __name__ == "__main__":
         response = requests.get(getSTLURL, headers=exportHeaders, allow_redirects=False)
 
         os.makedirs("out", exist_ok=True)
+        try:
+            download_url = response.headers["Location"]
+            # print("Download URL:", download_url)
+        except Exception as e:
+            print(f"{ERROR}Bad response of STL exporting.")
+            print("Exception:", repr(e))
+            print("Status:", response.status_code)
+            # print("Headers:", response.headers)
+            print("Body:", response.text[:1000])
+            raise
 
-        download_url = response.headers["Location"]
-        # print("Download URL:", download_url)
 
         file_name = partName + "-" + payload["name"] + ".stl"
         file_path = os.path.join("out", file_name)
