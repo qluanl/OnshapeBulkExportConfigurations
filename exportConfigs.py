@@ -17,6 +17,7 @@ WVM = os.getenv("WVM")
 # EID = os.getenv("EID")
 
 # ANSI color codes for error and warning
+HIGHLIGHT = "\033[1;33m"
 RED     = "\033[0;31m"
 GREEN   = "\033[0;32m"
 YELLOW  = "\033[0;33m"
@@ -118,7 +119,7 @@ if __name__ == "__main__":
             selectionInput = input(f"{INQUIRE}Please select part to be exported:").strip()
             if selectionInput.isdigit() and int(selectionInput)>=0 and int(selectionInput)<=len(data):
                 selectionInput = int(selectionInput) - 1
-                print(f"{INFO}Chosen part: {data[selectionInput]["name"]}")
+                print(f"{INFO}Chosen part: {GREEN}{data[selectionInput]["name"]}{NC}")
                 break
             else:
                 print(f"{ERROR}Cannot parse input, try again.")
@@ -135,13 +136,25 @@ if __name__ == "__main__":
     data = response.json()
 
     ## Show configuration parameters and ask user to choose
-    print(f"{INFO}Found configurations:")
+    print(f"{INFO}Found configurations: (with {HIGHLIGHT}default option{NC})")
     print(f"{GREEN}0){NC} Select All")
     for idx, configParameter in enumerate(data["configurationParameters"], start=1):
-        optionNames = [opt["optionName"] for opt in configParameter["options"]]
-        print(f"{GREEN}{idx}){NC} {configParameter['parameterName']} : {optionNames}")
+        configType = configParameter["btType"]
+        defaultOpt = configParameter["defaultValue"]
+        if configType == "BTMConfigurationParameterEnum-105": # List Configuration
+            optionNames = [
+                f"{HIGHLIGHT}{opt['optionName']}{NC}"
+                if opt["option"] == defaultOpt
+                else opt["optionName"]
+                for opt in configParameter["options"]
+            ]
+        elif configType == "BTMConfigurationParameterBoolean-2550": # Check (Bool) Configuration
+            optionNames = [f"{HIGHLIGHT}{str(defaultOpt)}{NC}", str(not defaultOpt)]
+
+        # Display configuration
+        print(f"{GREEN}{idx}){NC} {configParameter['parameterName']} : {', '.join(optionNames)}")
     while True:
-        selectionInput = input(f"{INQUIRE}Please select configuration inputs to be exported (use , to seperate multiple selections, 0 means all):").strip()
+        selectionInput = input(f"{INQUIRE}Please select configuration inputs to be exported (use , to seperate multiple selections, 0 means all):\n").strip()
         configParameterIndicesRaw = [int(x.strip()) for x in selectionInput.split(",") if x.strip().isdigit()]
         configParameterIndices = [x for x in configParameterIndicesRaw if x>=0 and x<=len(data["configurationParameters"])]
         if len(configParameterIndices)>0:
@@ -153,7 +166,7 @@ if __name__ == "__main__":
         chosenConfigParameters = data["configurationParameters"]
     else:
         chosenConfigParameters = [data["configurationParameters"][i - 1] for i in configParameterIndices]
-    print(f"{INFO}Seleted configuration inputs are: {[cp['parameterName'] for cp in chosenConfigParameters]}")
+    print(f"{INFO}Seleted configuration inputs are: {GREEN}{', '.join([cp['parameterName'] for cp in chosenConfigParameters])}{NC}")
 
 
     ## Check total number of combinations
@@ -205,8 +218,26 @@ if __name__ == "__main__":
 
         file_name = partName + "-" + payload["name"] + ".stl"
         file_path = os.path.join("out", file_name)
+
+        ## Download - stop with error
+        # with requests.get(download_url, headers=exportHeaders, stream=True) as r:
+        #     r.raise_for_status()
+        #     with open(file_path, "wb") as f:
+        #         for chunk in r.iter_content(chunk_size=8192):
+        #             f.write(chunk)
+
+        ## Download - print and continue with error
         with requests.get(download_url, headers=exportHeaders, stream=True) as r:
-            r.raise_for_status()
+            if not r.ok:
+                print("\n[Error] status:", r.status_code)
+                print("[Error] url:", r.url)
+                try:
+                    print("[Error] body:", r.text)  # Onshape error message
+                except Exception:
+                    pass
+                
+                # r.raise_for_status()  # Raise error OR continue
+                continue
             with open(file_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
